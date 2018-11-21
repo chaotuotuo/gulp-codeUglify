@@ -1,35 +1,34 @@
 
 let gulp = require('gulp'),
+	uglifyJS = require('gulp-terser'),
+	uglifyHTML = require('gulp-html-minifier2'),
+	uglifyCSS = require('gulp-css-condense'),
 	rename = require('gulp-rename'),
 	babel = require('gulp-babel'),
+	imageMin = require('gulp-imagemin'),
 	pump = require('pump'),
 	del = require('del'),
-	uglifyJS = require('gulp-uglify'),
-	uglifyHTML = require('gulp-html-minifier2'),
-	uglifyCSS = require('gulp-css-condense');
+	zip = require('gulp-zip');
+
 
 const DEST = 'Build',
-	PROJECT = 'source',
+	PROJECT = 'device_product_YD',
 	BASE = './'+PROJECT+'/**/*';
 
-let folderJS = [BASE+'.js',]
+
+let folderJS = [BASE+'.js'],
 	folderHTML = [BASE+'.html'],
 	folderCSS = [BASE+'.css'],
-	folderOther = [
-					BASE,
-					// '!'+folderJS[0],
-					'!'+folderHTML[0],
-					'!'+folderCSS[0],
-				];
+	folderImage = [BASE+'/**/*.{png,jpg}'],
+	ignoreUglify = [].concat(folderJS,folderHTML,folderCSS,folderImage).map(item => ('!'+item).replace(/\!{2}/g,'')),
+	folderOther = [BASE].concat(ignoreUglify);
 
 
-gulp.task('default',['uglifyCSS'])
+gulp.task('default',['zipFile'])
 
-gulp.task('uglifyJS',['copyFile'],function(){
+gulp.task('uglifyJS',['uglifyCSS'],function(){
 	return gulp.src(folderJS)
-		.pipe(uglifyJS({
-			warnings:true
-		}))
+		.pipe(uglifyJS())
 		.pipe(gulp.dest(DEST));
 })
 
@@ -56,21 +55,39 @@ gulp.task('uglifyCSS',['uglifyHTML'],function(){
 		}));
 })
 
+gulp.task('imageMini',['uglifyJS'],function(){
+	return gulp.src(folderImage)
+		.pipe(imageMin([
+					imageMin.gifsicle({interlaced: true}),
+					imageMin.jpegtran({progressive: true}),
+					imageMin.optipng({optimizationLevel: 5}),
+					imageMin.svgo({
+						plugins: [
+							{removeViewBox: true},
+							{cleanupIDs: false}
+						]
+					})
+				]))
+		.pipe(gulp.dest(DEST));
+})
+
 gulp.task('copyFile',['clearDest'],function(){
 	return gulp.src(folderOther)
 		.pipe(gulp.dest(DEST));
 })
 
 gulp.task('clearDest',function(){
-	del(DEST+'**/*');
+	del(DEST);
 })
 
-
-gulp.task('jsMini',['clearDest'],function(){
-	return gulp.src(folderJS)
-		pipe(babel({
-			presets: ['@babel/env']
-		}))
-		.pipe(uglifyJS())
+gulp.task('zipFile',['imageMini'],function(){
+	return gulp.src(DEST+'/**/*')
+		.pipe(zip(PROJECT+'.zip'))
 		.pipe(gulp.dest(DEST));
 })
+
+
+/**
+ * by --chaotuotuo
+ * 2018.11.15
+ */
