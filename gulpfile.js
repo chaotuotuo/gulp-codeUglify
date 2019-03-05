@@ -1,62 +1,35 @@
-
-let gulp = require('gulp'),
-	uglifyJS = require('gulp-terser'),
-	uglifyHTML = require('gulp-html-minifier2'),
-	uglifyCSS = require('gulp-css-condense'),
-	rename = require('gulp-rename'),
-	babel = require('gulp-babel'),
+const gulp = require('gulp'),
 	imageMin = require('gulp-imagemin'),
-	pump = require('pump'),
-	del = require('del'),
-	zip = require('gulp-zip');
+	minifier = require('gulp-minifier');
 
 
-const DEST = 'Build',
-	PROJECT = 'device_product_YD',
-	BASE = './'+PROJECT+'/**/*';
+
+const PROJECT = 'duobang',
+	DEST = PROJECT+'-Build',
+	all = '/**/*',
+	buildImgs = [PROJECT+all+'.{png,jpg}'],
+	buildFile = [PROJECT+all+'.{js,css,html}'],
+	copyFile = [PROJECT+all,'!'+buildFile,'!'+buildImgs];
 
 
-let folderJS = [BASE+'.js'],
-	folderHTML = [BASE+'.html'],
-	folderCSS = [BASE+'.css'],
-	folderImage = [BASE+'/**/*.{png,jpg}'],
-	ignoreUglify = [].concat(folderJS,folderHTML,folderCSS,folderImage).map(item => ('!'+item).replace(/\!{2}/g,'')),
-	folderOther = [BASE].concat(ignoreUglify);
-
-
-gulp.task('default',['zipFile'])
-
-gulp.task('uglifyJS',['uglifyCSS'],function(){
-	return gulp.src(folderJS)
-		.pipe(uglifyJS())
-		.pipe(gulp.dest(DEST));
-})
-
-gulp.task('uglifyHTML',['copyFile'],function(){
-	return gulp.src(folderHTML)
-		.pipe(uglifyHTML({
-			collapseWhitespace: true,
-			minifyCSS:true,
-			minifyJS:true,
-			minifyURLs:true,
-			processConditionalComments:true,
-			removeComments:true
+gulp.task('default',['imageMini'],() => {
+	return gulp.src(buildFile)
+		.pipe(minifier({
+			minify: true,
+		    minifyHTML: {
+		      collapseWhitespace: true,
+		      conservativeCollapse: false,
+		    },
+		    minifyJS: {
+		      sourceMap: false
+		    },
+		    minifyCSS: false
 		}))
-		.pipe(gulp.dest(pa => {
-			return pa.base.replace(PROJECT,DEST);
-		}));
+		.pipe(gulp.dest(DEST))
 })
 
-gulp.task('uglifyCSS',['uglifyHTML'],function(){
-	return gulp.src(folderCSS)
-		.pipe(uglifyCSS())
-		.pipe(gulp.dest(pa => {
-			return pa.base.replace(PROJECT,DEST);
-		}));
-})
-
-gulp.task('imageMini',['uglifyJS'],function(){
-	return gulp.src(folderImage)
+gulp.task('imageMini',['copyFile'],function(){
+	return gulp.src(buildImgs)
 		.pipe(imageMin([
 					imageMin.gifsicle({interlaced: true}),
 					imageMin.jpegtran({progressive: true}),
@@ -70,24 +43,7 @@ gulp.task('imageMini',['uglifyJS'],function(){
 				]))
 		.pipe(gulp.dest(DEST));
 })
-
-gulp.task('copyFile',['clearDest'],function(){
-	return gulp.src(folderOther)
-		.pipe(gulp.dest(DEST));
+gulp.task('copyFile',() => {
+	return gulp.src(copyFile)
+		.pipe(gulp.dest(DEST))
 })
-
-gulp.task('clearDest',function(){
-	del(DEST);
-})
-
-gulp.task('zipFile',['imageMini'],function(){
-	return gulp.src(DEST+'/**/*')
-		.pipe(zip(PROJECT+'.zip'))
-		.pipe(gulp.dest(DEST));
-})
-
-
-/**
- * by --chaotuotuo
- * 2018.11.15
- */
